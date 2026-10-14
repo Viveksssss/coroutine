@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.10.0)
+project(coroutine VERSION 0.1.0 LANGUAGES C CXX)
+
+set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+
+
+add_library(coroutine SHARED src/thread/thread.cpp
+    src/fiber/fiber.h)
+add_executable(main src/main.cpp)
+target_link_libraries(main PRIVATE coroutine)
