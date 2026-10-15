@@ -1,11 +1,11 @@
 #include "fiber.h"
 #include <iostream>
 
-static bool debug = false;
+static constexpr bool debug = true;
 namespace vik::fiber
 {
 /*正在运行的协程 */
-static thread_local Fiber*t_fiber = nullptr;
+thread_local Fiber*t_fiber = nullptr;
 /*主协程 */
 static thread_local std::shared_ptr<Fiber>t_thread_fiber = nullptr;
 /*协程调度*/
@@ -44,15 +44,23 @@ uint64_t Fiber::GetFiberId() {
 }
 
 void Fiber::MainFunc() {
-    std::shared_ptr<Fiber>curr = GetThis();
-    assert(curr != nullptr);
-    curr->_cb();
-    curr->_cb = nullptr;
-    curr->_state = TERM;
+    std::cout << "use_count:" << GetThis().use_count() << "  Fiber::MainFunc() id: " << GetFiberId() << std::endl;
+    // std::shared_ptr<Fiber>curr = GetThis();
+    Fiber*self = t_fiber;
+    assert(self != nullptr);
 
-    auto raw_ptr = curr.get();
-    curr.reset();
-    raw_ptr->yield();
+    if constexpr (debug){
+        std::cout << "Fiber::MainFunc() id: " << GetFiberId() << " state: " << self->_state << "  cb start"<<std::endl;
+    }
+
+    self->_cb();
+    self->_cb = nullptr;
+    self->_state = TERM;
+
+    if constexpr (debug){
+        std::cout << "Fiber::MainFunc() id: " << GetFiberId() << " state: " << self->_state << "  cb finished" <<std::endl;
+    }
+    self->yield();
 }
 
 Fiber::Fiber(){
@@ -64,7 +72,7 @@ Fiber::Fiber(){
     }
     _id = s_fiber_id++;
     s_fiber_count++; // 活跃协程+1
-    if (debug){
+    if constexpr(debug){
         std::cout << "Fiber() id: " << _id << " state: " << _state << std::endl;
     }
 }
@@ -87,22 +95,25 @@ Fiber::Fiber(std::function<void()> cb, size_t stacksize, bool run_in_scheduler)
 
     _id = s_fiber_id++;
     s_fiber_count++; // 活跃协程+1
-    if (debug){
+    if constexpr(debug){
         std::cout << "Fiber() id: " << _id << " state: " << _state << std::endl;
     }
 }
 
 Fiber::~Fiber() {
     s_fiber_count--;
+    assert(!(_stack_ptr && _state == RUNNING) && "协程正在运行时被析构: 外部提前释放了最后一个引用");
     if (_stack_ptr){
         free(_stack_ptr);
+        _stack_ptr = nullptr;
     }
-    if (debug){
+    if constexpr(debug){
         std::cout << "~Fiber() id: " << _id << " state: " << _state << std::endl;
     }
 }
 
 void Fiber::reset(std::function<void()> cb) {
+    // TODO: 这里需要考虑协程状态的合法性
     assert(_stack_ptr!=nullptr && _state == TERM);
     _state = READY;
     _cb = cb;
@@ -122,6 +133,8 @@ void Fiber::resume() {
         GetThis();
     }
     assert(_state == READY);
+    assert(_run_in_scheduler ? t_scheduler_fiber !=        
+ nullptr : t_thread_fiber != nullptr);
     _state = RUNNING;
     if (_run_in_scheduler){
         SetThis(this);

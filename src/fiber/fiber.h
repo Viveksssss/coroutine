@@ -10,6 +10,8 @@
 
 namespace vik::fiber
 {
+class Fiber;
+extern thread_local Fiber*t_fiber;
 class Fiber : public std::enable_shared_from_this<Fiber>
 {
 public:
@@ -70,5 +72,11 @@ private:
 public:
     std::mutex _mtx;
 };
+
+inline void yield(){
+    Fiber*self = t_fiber;
+    if(!self)return; // 还没有进入协程环境
+    self->yield();
+}
 
 }

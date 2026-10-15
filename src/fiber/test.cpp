@@ -1,14 +1,18 @@
 #include "fiber.h"
 #include <iostream>
+
+using namespace vik::fiber;
 void taskA() {
     std::cout << "A start\n";
-    vik::fiber::Fiber::GetThis()->yield();      // 让出，切回主协程
+    // vik::fiber::Fiber::GetThis()->yield();      // 让出，切回主协程
+    yield();
     std::cout << "A resume\n";
 }
 
 void taskB() {
     std::cout << "B start\n";
-    vik::fiber::Fiber::GetThis()->yield();
+    // vik::fiber::Fiber::GetThis()->yield();
+    yield();
     std::cout << "B resume\n";
 }
 
@@ -27,5 +31,7 @@ int main() {
     fb->resume();     // 切回 B，让它跑完
 
     std::cout << "main end\n";
+    std::cout << fa.use_count() << std::endl;
+    std::cout << fb.use_count() << std::endl;
     return 0;
 }
