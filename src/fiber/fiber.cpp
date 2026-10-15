@@ -1,7 +1,6 @@
 #include "fiber.h"
+#include "debug.h"
 #include <iostream>
-
-static constexpr bool debug = true;
 namespace vik::fiber
 {
 /*正在运行的协程 */
@@ -44,12 +43,14 @@ uint64_t Fiber::GetFiberId() {
 }
 
 void Fiber::MainFunc() {
-    std::cout << "use_count:" << GetThis().use_count() << "  Fiber::MainFunc() id: " << GetFiberId() << std::endl;
+    if constexpr(debug::debug){
+        std::cout << "use_count:" << GetThis().use_count() << "  Fiber::MainFunc() id: " << GetFiberId() << std::endl;
+    }
     // std::shared_ptr<Fiber>curr = GetThis();
     Fiber*self = t_fiber;
     assert(self != nullptr);
 
-    if constexpr (debug){
+    if constexpr (debug::debug){
         std::cout << "Fiber::MainFunc() id: " << GetFiberId() << " state: " << self->_state << "  cb start"<<std::endl;
     }
 
@@ -57,7 +58,7 @@ void Fiber::MainFunc() {
     self->_cb = nullptr;
     self->_state = TERM;
 
-    if constexpr (debug){
+    if constexpr (debug::debug){
         std::cout << "Fiber::MainFunc() id: " << GetFiberId() << " state: " << self->_state << "  cb finished" <<std::endl;
     }
     self->yield();
@@ -72,7 +73,7 @@ Fiber::Fiber(){
     }
     _id = s_fiber_id++;
     s_fiber_count++; // 活跃协程+1
-    if constexpr(debug){
+    if constexpr(debug::debug){
         std::cout << "Fiber() id: " << _id << " state: " << _state << std::endl;
     }
 }
@@ -95,7 +96,7 @@ Fiber::Fiber(std::function<void()> cb, size_t stacksize, bool run_in_scheduler)
 
     _id = s_fiber_id++;
     s_fiber_count++; // 活跃协程+1
-    if constexpr(debug){
+    if constexpr(debug::debug){
         std::cout << "Fiber() id: " << _id << " state: " << _state << std::endl;
     }
 }
@@ -107,7 +108,7 @@ Fiber::~Fiber() {
         free(_stack_ptr);
         _stack_ptr = nullptr;
     }
-    if constexpr(debug){
+    if constexpr(debug::debug){
         std::cout << "~Fiber() id: " << _id << " state: " << _state << std::endl;
     }
 }

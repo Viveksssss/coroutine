@@ -1,4 +1,7 @@
 build/
 ignores/
 *.so
-
+.vscode/
+.AGENT/
+.claude/
+.pi/
