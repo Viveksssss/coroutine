@@ -64,7 +64,7 @@ public:
     /* 是否有定时器 */
     bool hasTimer() const;
 protected:
-    virtual void onTimerInsertAtFront();
+    virtual void onTimerInsertedAtFront();
     void addTimer(std::shared_ptr<Timer>timer);
 private:
     bool detectClockRollover();

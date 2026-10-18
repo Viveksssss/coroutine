@@ -12,7 +12,10 @@ add_library(coroutine SHARED
     src/thread/thread.cpp
     src/fiber/fiber.cpp
     src/scheduler/scheduler.cpp
+    src/scheduler/scheduler.h
     src/timer/timer.cpp
+    src/iomanager/iomanager.h
+    src/iomanager/iomanager.cpp
 )
 
 # 头文件按 "fiber.h" / "thread.h" / "scheduler.h" / "debug.h" 直接包含

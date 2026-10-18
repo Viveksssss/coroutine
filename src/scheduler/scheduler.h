@@ -24,6 +24,7 @@ public:
 
 public:
     static Scheduler* GetThis();
+    const std::string&getName()const{return _name;}
 
 protected:
     void SetThis();

@@ -139,7 +139,7 @@ bool TimerManager::hasTimer()const
     return !_timers.empty();
 }
 
-void TimerManager::onTimerInsertAtFront() {
+void TimerManager::onTimerInsertedAtFront() {
 }
 
 void TimerManager::addTimer(std::shared_ptr<Timer> timer) {
@@ -153,7 +153,7 @@ void TimerManager::addTimer(std::shared_ptr<Timer> timer) {
         }
     }
     if (at_front){
-        onTimerInsertAtFront();
+        onTimerInsertedAtFront();
     }
 }
 
