@@ -7,3 +7,6 @@ ignores/
 .pi/
 test
 .workbuddy/
+dist/
+examples/quickstart
+a.out

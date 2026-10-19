@@ -18,13 +18,15 @@ IOManager* IOManager::GetThis()
 IOManager::FdContext::EventContext& vik::iomanager::IOManager::FdContext::getEventContext(Event event)
 {
     assert(event == READ || event == WRITE);
-    switch (event){
+    switch (static_cast<Event>(event)){
         case READ :
         return read;
         case WRITE:
         return write;
-        
+        default:
+            goto e;
     }
+e:
     throw std::invalid_argument("Unsupported event type");
 
 }
@@ -116,7 +118,7 @@ int IOManager::addEvent(int fd, Event event, std::function<void()> cb)
 
     int op = fd_ctx -> events ? EPOLL_CTL_MOD : EPOLL_CTL_ADD;
     epoll_event epevent; 
-    epevent.events = EPOLLET | fd_ctx->events | event;
+    epevent.events = static_cast<uint32_t>(EPOLLET) | static_cast<uint32_t>(fd_ctx->events) | static_cast<uint32_t>(event);
     epevent.data.ptr = fd_ctx;
     int rt = epoll_ctl(_epfd,op,fd_ctx->fd,&epevent);
     if (rt){
@@ -157,7 +159,7 @@ bool IOManager::delEvent(int fd, Event event)
     Event new_events = (Event)(fd_ctx->events & ~event);
     int op = new_events ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
     epoll_event epevent;
-    epevent.events = EPOLLET | new_events;
+    epevent.events = static_cast<uint32_t>(EPOLLET) | static_cast<uint32_t>(new_events);
     epevent.data.ptr = fd_ctx;
 
     int rt = epoll_ctl(_epfd,op,fd,&epevent);
@@ -192,7 +194,7 @@ bool IOManager::cancelEvent(int fd, Event event)
     Event new_events = (Event)(fd_ctx->events & ~event);
     int op = new_events ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
     epoll_event epevent;
-    epevent.events = EPOLLET | new_events;
+    epevent.events = static_cast<uint32_t>(EPOLLET) | static_cast<uint32_t>(new_events);
     epevent.data.ptr = fd_ctx;
 
     int rt = epoll_ctl(_epfd,op,fd,&epevent);

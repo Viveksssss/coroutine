@@ -427,7 +427,6 @@ int fcntl(int fd, int cmd, ... /* arg */ )
                 }
                 return fcntl_f(fd, cmd, arg);
             }
-            break;
 
         case F_GETFL:
             {
@@ -447,8 +446,8 @@ int fcntl(int fd, int cmd, ... /* arg */ )
                 {
                     return arg & ~O_NONBLOCK;
                 }
+
             }
-            break;
 
         case F_DUPFD:
         case F_DUPFD_CLOEXEC:
@@ -465,7 +464,6 @@ int fcntl(int fd, int cmd, ... /* arg */ )
                 va_end(va);
                 return fcntl_f(fd, cmd, arg); 
             }
-            break;
 
 
         case F_GETFD:
@@ -479,7 +477,6 @@ int fcntl(int fd, int cmd, ... /* arg */ )
                 va_end(va);
                 return fcntl_f(fd, cmd);
             }
-            break;
 
         case F_SETLK:
         case F_SETLKW:
@@ -489,7 +486,6 @@ int fcntl(int fd, int cmd, ... /* arg */ )
                 va_end(va);
                 return fcntl_f(fd, cmd, arg);
             }
-            break;
 
         case F_GETOWN_EX:
         case F_SETOWN_EX:
@@ -498,7 +494,6 @@ int fcntl(int fd, int cmd, ... /* arg */ )
                 va_end(va);
                 return fcntl_f(fd, cmd, arg);
             }
-            break;
 
         default:
             va_end(va);
