@@ -78,3 +78,142 @@ while (true) {
     cd <目录名>
     mkdir build && cd build && cmake .. && make
 ```
+
+## 安装
+
+```bash
+mkdir -p build && cd build && cmake .. && ninja   # 没有 ninja 就用 make
+cd ..
+./install.sh                                      # 不是 root 会自动加 sudo
+```
+
+装到两个目录，没有别的：
+
+```
+/usr/include/coroutine/*.h              头文件
+/usr/lib/coroutine/libcoroutine.so      动态库
+```
+
+卸载：
+
+```bash
+sudo rm -rf /usr/include/coroutine /usr/lib/coroutine
+```
+
+## 基本用法
+
+### 1. 最小用例
+
+```cpp
+#include <coroutine/iomanager.h>
+#include <coroutine/hook.h>
+
+#include <iostream>
+#include <unistd.h>
+
+int main() {
+    vik::iomanager::IOManager iom(1);   // 1 个调度线程; 主线程也参与调度
+    vik::hook::set_hook_enable(true);   // 打开 hook(thread_local, 在当前线程生效)
+
+    iom.add([] {                        // 提交任务: 普通函数/lambda 即可, 同步写法
+        std::cout << "开始睡 2 秒" << std::endl;
+        sleep(2);                       // 被 hook: 协程挂起, 线程不阻塞
+        std::cout << "睡醒了" << std::endl;
+    });
+
+    iom.add([] {
+        std::cout << "睡的那 2 秒里, 这个任务照跑" << std::endl;
+    });
+
+    iom.stop();                         // 阻塞到所有任务/定时器结束
+    return 0;
+}
+```
+
+编译：
+
+```bash
+g++ -std=c++17 -pthread main.cpp \
+    -L/usr/lib/coroutine -lcoroutine -Wl,-rpath,/usr/lib/coroutine -o main
+```
+
+输出（顺序说明 `sleep` 确实让出了执行权）：
+
+```
+开始睡 2 秒
+睡的那 2 秒里, 这个任务照跑
+睡醒了
+```
+
+三个关键点：
+
+- `IOManager iom(线程数)`：构造即启动。`use_caller` 默认 true，主线程也进调度循环，所以单线程场景下任务跑在主线程里。
+- `iom.add(...)`：把任务提交给调度器。任务里写同步代码，遇到被 hook 的 `sleep` / `read` / `write` 会自动让出，恢复后从下一行继续。
+- `iom.stop()`：等队列跑空、定时器和 fd 事件都没了才返回。不写它也行，`~IOManager` 里会调一次。
+
+### 2. 定时器
+
+```cpp
+// 500ms 后执行一次
+iom.addTimer(500, [] { std::cout << "500ms" << std::endl; });
+
+// 每 300ms 执行一次(recurring=true), 返回的 timer 可以随时取消
+auto timer = iom.addTimer(300, [] { std::cout << "tick" << std::endl; }, true);
+timer->cancel();      // 取消
+timer->refresh();     // 重新计时
+timer->reset(1000);   // 改成 1000ms
+```
+
+条件定时器绑一个 `weak_ptr`，对象销毁后回调不再触发（适合“连接还活着才做心跳”这类场景）：
+
+```cpp
+std::shared_ptr<Conn> conn = ...;
+iom.addConditionTimer(1000, [] { /* 心跳 */ }, conn);
+```
+
+### 3. socket 读写
+
+```cpp
+#include <coroutine/fd_manager.h>   // FdMgr 在这里
+
+int sv[2];
+socketpair(AF_UNIX, SOCK_STREAM, 0, sv);
+vik::fdmanager::FdMgr::GetInstance()->get(sv[0], true);   // 登记 fd
+vik::fdmanager::FdMgr::GetInstance()->get(sv[1], true);
+
+iom.add([&] {
+    char buf[64] = {0};
+    ssize_t n = read(sv[0], buf, sizeof buf);   // 没数据 -> 协程挂起, 等 epoll 通知
+    std::cout << "读到 " << n << " 字节: " << buf << std::endl;
+});
+
+iom.addTimer(500, [&] {
+    write(sv[1], "hello", 5);                   // 触发上面的 READ 事件
+});
+```
+
+不用协程时 `read` 会把整个线程堵住；这里 `read` 发现 `EAGAIN` 就把当前协程挂起，事件就绪后由 epoll 唤醒，线程继续跑别的任务。
+
+### 4. 多线程调度
+
+```cpp
+vik::iomanager::IOManager iom(4);   // 4 个调度线程(use_caller 为 true 时主线程也算一个)
+
+iom.add([] {
+    vik::hook::set_hook_enable(true);   // 在每个任务里开, 见下面注意事项
+    sleep(1);
+});
+
+iom.add([] { /* 由任意一个空闲线程取走 */ });
+```
+
+`add` 的第二个参数可以指定线程 id（默认 `-1` = 任意线程），但库里没有对外暴露 tid 的接口，实际用不上，不传就好。
+
+## 注意事项
+
+- **`t_hook_enable` 是 `thread_local`**。多线程时只在 main 里 `set_hook_enable(true)` 是不够的，跑任务的线程看不到。习惯写法是每个任务开头调一次。
+- **fd 必须是被 hook 的 `socket()` 创建的**（或手动 `FdMgr::GetInstance()->get(fd, true)` 登记），否则 `read` / `write` 会被直接放行，退化成阻塞调用。`pipe`、`socketpair` 这类就要手动登记。
+- **`std::this_thread::sleep_for` 不会被 hook**，它睡的是线程不是协程。协程里用 `sleep` / `usleep` / `nanosleep`。
+- **`stop()` 不能在 worker 线程里调用**（它要 join 工作线程），代码里用 assert 卡住了。要主动结束就在主线程调。
+
+完整的可运行示例见 `examples/quickstart.cpp`，`cd examples && make run` 直接跑。
