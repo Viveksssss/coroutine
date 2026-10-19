@@ -16,6 +16,10 @@ add_library(coroutine SHARED
     src/timer/timer.cpp
     src/iomanager/iomanager.h
     src/iomanager/iomanager.cpp
+    src/hook/hook.h
+    src/hook/hook.cpp
+    src/hook/fd_manager.h
+    src/hook/fd_manager.cpp
 )
 
 # 头文件按 "fiber.h" / "thread.h" / "scheduler.h" / "debug.h" 直接包含
@@ -24,6 +28,9 @@ target_include_directories(coroutine PUBLIC
     src/thread
     src/scheduler
     src/debug
+    src/hook
+    src/timer
+    src/iomanager
 )
 
 add_executable(main src/main.cpp)

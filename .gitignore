@@ -6,3 +6,4 @@ ignores/
 .claude/
 .pi/
 test
+.workbuddy/

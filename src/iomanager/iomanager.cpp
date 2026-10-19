@@ -53,6 +53,7 @@ void IOManager::FdContext::triggerEvent(Event event)
 }
 
 IOManager::IOManager(size_t threads, bool use_caller, const std::string& name)
+    : Scheduler(threads,use_caller,name),TimerManager()
 {
     _epfd = epoll_create1(EPOLL_CLOEXEC);
     if (_epfd < 0) {
@@ -174,35 +175,35 @@ bool IOManager::delEvent(int fd, Event event)
 bool IOManager::cancelEvent(int fd, Event event)
 {
     FdContext *fd_ctx = nullptr;
-        std::shared_lock<std::shared_mutex>read_lock(_mutex);
-        if ((int)_fdContexts.size() > fd){
-            fd_ctx = _fdContexts[fd];
-            read_lock.unlock();
-        }else{
-            read_lock.unlock();
-            return false;
-        }
-    
-        std::lock_guard<std::mutex>lock(fd_ctx->mutex);
-        if (!(fd_ctx->events & event)){
-            return false;
-        }
-    
-        Event new_events = (Event)(fd_ctx->events & ~event);
-        int op = new_events ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
-        epoll_event epevent;
-        epevent.events = EPOLLET | new_events;
-        epevent.data.ptr = fd_ctx;
-    
-        int rt = epoll_ctl(_epfd,op,fd,&epevent);
-        if (rt){
-            std::cerr << "delEvent::epoll_ctl failed: " << strerror(errno) <<std::endl;
-            return false;
-        }
-    
-        --_pendingEventCount;
-        fd_ctx->triggerEvent(event);
-        return true;
+    std::shared_lock<std::shared_mutex>read_lock(_mutex);
+    if ((int)_fdContexts.size() > fd){
+        fd_ctx = _fdContexts[fd];
+        read_lock.unlock();
+    }else{
+        read_lock.unlock();
+        return false;
+    }
+
+    std::lock_guard<std::mutex>lock(fd_ctx->mutex);
+    if (!(fd_ctx->events & event)){
+        return false;
+    }
+
+    Event new_events = (Event)(fd_ctx->events & ~event);
+    int op = new_events ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
+    epoll_event epevent;
+    epevent.events = EPOLLET | new_events;
+    epevent.data.ptr = fd_ctx;
+
+    int rt = epoll_ctl(_epfd,op,fd,&epevent);
+    if (rt){
+        std::cerr << "delEvent::epoll_ctl failed: " << strerror(errno) <<std::endl;
+        return false;
+    }
+
+    --_pendingEventCount;
+    fd_ctx->triggerEvent(event);
+    return true;
 }
 bool IOManager::cancelAll(int fd)
 {

@@ -170,12 +170,15 @@ void Scheduler::run() {
                     task._fiber->resume();
                 }
             }
-            if (task._fiber->getState() != vik::fiber::Fiber::TERM) {
-                // 还没结束 → 重新放回队列，等下次再跑
+            /* 只有 READY 才放回队列: 那是协程主动 yield 让出时间片, 应该继续被调度;
+             * SUSPEND 表示协程在等外部条件(被 hook 的 sleep/read/write 等定时器或 epoll 事件),
+             * 放回队列就等于让 yield 立刻返回, 定时器形同虚设。唤醒由持有该协程的
+             * 定时器回调 / 事件通知调用 add(fiber) 完成。 */
+            if (task._fiber->getState() == vik::fiber::Fiber::READY) {
                 std::lock_guard<std::mutex> lock(_mutex);
                 _tasks.push_back(task);
-            } 
-            
+            }
+
             task_finished();
             task.reset();
         }else if (task._cb){
@@ -187,7 +190,8 @@ void Scheduler::run() {
                 }
                 cb_fiber->resume();
             }
-            if (cb_fiber->getState()!=vik::fiber::Fiber::TERM){
+            /* 同上: 主动 yield 的继续调度, 挂起等事件的交给唤醒者保管 */
+            if (cb_fiber->getState() == vik::fiber::Fiber::READY){
                 task._fiber = cb_fiber;
                 task._cb = nullptr;
                 std::lock_guard<std::mutex>lock(_mutex);

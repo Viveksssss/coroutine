@@ -18,13 +18,19 @@ int main(){
     // },true);
 
     // iom.addTimer(500,[](){
-    //     std::cout << "Time out for 500ms" << std::endl; 
+    //     std::cout << "Time out for 5dx00ms" << std::endl; 
     //     vik::fiber::yield();
     //     std::cout << "resumed from yield" << std::endl;
     // });
 
     int fds[2];
     pipe(fds);   // fds[0] 读端，fds[1] 写端
+
+    iom.add([](){
+        std::cout << "start sleep 5s" << std::endl;
+        sleep(5);
+        std::cout << "stop from sleep" << std::endl;
+    });
 
     // 给读端注册 READ 事件
     iom.addEvent(fds[0], vik::iomanager::IOManager::READ, [fds]() {

@@ -133,7 +133,8 @@ void Fiber::resume() {
     if (!t_thread_fiber){
         GetThis();
     }
-    assert(_state == READY);
+    assert((_state == READY || _state == SUSPEND) &&
+           "只能恢复处于 READY 或 SUSPEND 状态的协程");
     assert(_run_in_scheduler ? t_scheduler_fiber !=        
  nullptr : t_thread_fiber != nullptr);
     _state = RUNNING;
@@ -154,9 +155,17 @@ void Fiber::resume() {
 }
 
 void Fiber::yield() {
+    yieldTo(READY);
+}
+
+void Fiber::suspend() {
+    yieldTo(SUSPEND);
+}
+
+void Fiber::yieldTo(State target) {
     assert(_state==RUNNING || _state==TERM);
     if (_state == RUNNING){
-        _state = READY;
+        _state = target;
     }
 
     if (_run_in_scheduler){
