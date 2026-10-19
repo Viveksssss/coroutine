@@ -5,6 +5,7 @@
 当前完成度：协程调度、定时器、fd 读写事件均可运行，测试用例在 `test/` 下。尚未实现协程池和连接管理。
 
 ## 目录结构
+```shell
 vik/
 ├── fiber/ 有栈协程，基于 ucontext
 ├── thread/ pthread 封装
@@ -14,7 +15,7 @@ vik/
 ├── hook/ 钩子代码
 ├── debug/ 调试输出
 └── test/ 测试代码
-
+```
 
 依赖关系自底向上：`thread` → `fiber` → `scheduler` → `iomanager`，`timer` 由 `iomanager` 使用。
 
